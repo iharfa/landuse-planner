@@ -11,11 +11,14 @@ import {
   LandUseKey,
 } from "@/lib/landuse";
 import {
+  DEFAULT_GENERATOR,
   DEFAULT_PARAMETERS,
+  GeneratorOptions,
   Parcel,
   PlanningParameters,
   ProjectState,
 } from "@/lib/types";
+import { generatePlan } from "@/lib/generate";
 import {
   compareCategories,
   deriveMetrics,
@@ -62,6 +65,8 @@ export default function PlannerApp() {
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [parameters, setParameters] =
     useState<PlanningParameters>(DEFAULT_PARAMETERS);
+  const [generator, setGenerator] =
+    useState<GeneratorOptions>(DEFAULT_GENERATOR);
 
   const [mode, setMode] = useState<Mode>("idle");
   const [pendingUse, setPendingUse] = useState<LandUseKey>("residential");
@@ -148,6 +153,33 @@ export default function PlannerApp() {
     mapRef.current?.stopDraw();
   }
 
+  function runGenerate() {
+    if (!boundary) return flash("Draw a planning boundary first.");
+    stopDrawing();
+    const result = generatePlan(boundary, generator, parameters, percentages);
+    if ("error" in result) return flash(result.error);
+    // replace previously generated parcels; keep manually drawn ones
+    setParcels((prev) => [
+      ...prev.filter((p) => !p.generated),
+      ...result.parcels,
+    ]);
+    setSelectedParcelId(null);
+    flash(
+      `Generated ${result.stats.plots.toLocaleString()} plots (avg ${Math.round(
+        result.stats.avgPlotSqft
+      ).toLocaleString()} sq ft).`
+    );
+  }
+
+  function clearGenerated() {
+    setParcels((prev) => prev.filter((p) => !p.generated));
+    flash("Cleared generated plots.");
+  }
+
+  function updateGenerator(patch: Partial<GeneratorOptions>) {
+    setGenerator((prev) => ({ ...prev, ...patch }));
+  }
+
   function changePercentage(key: LandUseKey, value: number) {
     setPercentages((prev) => rebalancePercentages(prev, locked, key, value));
   }
@@ -183,6 +215,18 @@ export default function PlannerApp() {
       Object.values(percentages).reduce((s, v) => s + v, 0),
     [percentages]
   );
+  const manualParcels = useMemo(
+    () => parcels.filter((p) => !p.generated),
+    [parcels]
+  );
+  const generatedCount = parcels.length - manualParcels.length;
+  const generatedByUse = useMemo(() => {
+    const out: Partial<Record<LandUseKey, number>> = {};
+    parcels.forEach((p) => {
+      if (p.generated) out[p.landUse] = (out[p.landUse] || 0) + 1;
+    });
+    return out;
+  }, [parcels]);
 
   // ---- project persistence ----
   function buildState(): ProjectState {
@@ -196,6 +240,7 @@ export default function PlannerApp() {
       locked,
       parcels,
       parameters,
+      generator,
     };
   }
   function applyState(s: ProjectState) {
@@ -207,6 +252,7 @@ export default function PlannerApp() {
     setLocked(s.locked);
     setParcels(s.parcels);
     setParameters(s.parameters);
+    if (s.generator) setGenerator(s.generator);
     if (s.boundary) mapRef.current?.zoomToIsland(s.boundary);
   }
 
@@ -297,32 +343,54 @@ export default function PlannerApp() {
             ✏️ Draw Boundary
           </button>
 
-          <div className="rounded bg-slate-800 p-2 ring-1 ring-white/10">
-            <span className="mb-1 block text-xs text-slate-400">
-              Parcel land-use
-            </span>
-            <select
-              value={pendingUse}
-              onChange={(e) => setPendingUse(e.target.value as LandUseKey)}
-              className="mb-2 w-full rounded bg-slate-900 px-2 py-1.5 ring-1 ring-white/10"
-            >
-              {LAND_USE_CATEGORIES.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+          <button
+            onClick={runGenerate}
+            disabled={!boundary}
+            className="rounded bg-emerald-500 px-3 py-2 text-left font-semibold text-slate-900 ring-1 ring-white/10 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+          >
+            ⚡ Generate Plan
+          </button>
+          {parcels.some((p) => p.generated) && (
             <button
-              onClick={startParcel}
-              className={`w-full rounded px-3 py-2 font-medium ring-1 ring-white/10 ${
-                mode === "parcel"
-                  ? "bg-sky-500 text-slate-900"
-                  : "bg-slate-900 hover:bg-slate-700"
-              }`}
+              onClick={clearGenerated}
+              className="rounded bg-slate-800 px-3 py-1.5 text-left text-xs hover:bg-slate-700"
             >
-              ➕ Draw Parcels
+              ✕ Clear generated plots
             </button>
-          </div>
+          )}
+
+          {/* manual drawing (secondary) */}
+          <details className="rounded bg-slate-800 ring-1 ring-white/10">
+            <summary className="cursor-pointer px-2 py-1.5 text-xs text-slate-300">
+              ✎ Manual parcel drawing
+            </summary>
+            <div className="p-2">
+              <span className="mb-1 block text-xs text-slate-400">
+                Parcel land-use
+              </span>
+              <select
+                value={pendingUse}
+                onChange={(e) => setPendingUse(e.target.value as LandUseKey)}
+                className="mb-2 w-full rounded bg-slate-900 px-2 py-1.5 ring-1 ring-white/10"
+              >
+                {LAND_USE_CATEGORIES.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={startParcel}
+                className={`w-full rounded px-3 py-2 text-sm font-medium ring-1 ring-white/10 ${
+                  mode === "parcel"
+                    ? "bg-sky-500 text-slate-900"
+                    : "bg-slate-900 hover:bg-slate-700"
+                }`}
+              >
+                ➕ Draw Parcels
+              </button>
+            </div>
+          </details>
 
           {mode !== "idle" && (
             <button
@@ -429,6 +497,44 @@ export default function PlannerApp() {
           </div>
         </section>
 
+        {/* Auto-Plan settings */}
+        <section className="border-t border-white/10 pt-2">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-semibold text-sky-300">Auto-Plan</h2>
+            <button
+              onClick={runGenerate}
+              disabled={!boundary}
+              className="rounded bg-emerald-500 px-2 py-1 text-xs font-semibold text-slate-900 hover:bg-emerald-400 disabled:bg-slate-700 disabled:text-slate-400"
+            >
+              ⚡ Generate
+            </button>
+          </div>
+          <div className="flex flex-col gap-2 text-xs">
+            <ParamRow label="Plot size (sq ft)" value={generator.targetPlotSqft} step={100} onChange={(v) => updateGenerator({ targetPlotSqft: v })} />
+            <ParamRow label="Min plot size (sq ft)" value={generator.minPlotSqft} step={100} onChange={(v) => updateGenerator({ minPlotSqft: v })} />
+            <ParamRow label="Plot depth : width" value={generator.depthWidthRatio} step={0.1} onChange={(v) => updateGenerator({ depthWidthRatio: v })} />
+            <ParamRow label="Road lanes" value={generator.roadLanes} step={1} onChange={(v) => updateGenerator({ roadLanes: Math.max(1, Math.round(v)) })} />
+            <ParamRow label="Lane width (ft)" value={generator.laneWidthFt} step={1} onChange={(v) => updateGenerator({ laneWidthFt: v })} />
+            <ParamRow label="Plots between cross-roads" value={generator.colsPerBlock} step={1} onChange={(v) => updateGenerator({ colsPerBlock: Math.max(1, Math.round(v)) })} />
+            <ParamRow label="Rows between roads" value={generator.rowsPerBlock} step={1} onChange={(v) => updateGenerator({ rowsPerBlock: Math.max(1, Math.round(v)) })} />
+            <label className="flex items-center justify-between gap-2">
+              <span className="text-slate-300">Green space from parameters</span>
+              <input
+                type="checkbox"
+                checked={generator.greenFromParams}
+                onChange={(e) => updateGenerator({ greenFromParams: e.target.checked })}
+                className="accent-emerald-500"
+              />
+            </label>
+          </div>
+          <p className="mt-1.5 text-[11px] text-slate-500">
+            Computed road width: {(generator.roadLanes * generator.laneWidthFt).toFixed(0)} ft
+            {generator.greenFromParams
+              ? " · green sized by m²/person target"
+              : " · green sized by the Green Space slider"}.
+          </p>
+        </section>
+
         {/* Parameters */}
         <section className="border-t border-white/10 pt-2">
           <h2 className="mb-2 font-semibold text-sky-300">Parameters</h2>
@@ -472,13 +578,47 @@ export default function PlannerApp() {
           <h2 className="mb-2 font-semibold text-sky-300">
             Parcels ({parcels.length})
           </h2>
+
+          {/* generated-plot summary (kept compact for large counts) */}
+          {generatedCount > 0 && (
+            <div className="mb-2 rounded bg-slate-800/60 p-2 text-xs">
+              <div className="mb-1 font-medium text-emerald-300">
+                ⚡ {generatedCount.toLocaleString()} auto-generated plots
+              </div>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px]">
+                {LAND_USE_CATEGORIES.map((c) => {
+                  const n = generatedByUse[c.key] || 0;
+                  if (!n) return null;
+                  return (
+                    <div key={c.key} className="flex items-center gap-1.5">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-sm"
+                        style={{ background: c.color }}
+                      />
+                      <span className="flex-1 truncate text-slate-300">
+                        {c.label}
+                      </span>
+                      <span className="tabular-nums">{n}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             {parcels.length === 0 && (
               <p className="text-xs text-slate-400">
-                No parcels yet. Pick a land-use and draw inside the boundary.
+                No parcels yet. Set a boundary and click ⚡ Generate Plan, or
+                draw manually.
               </p>
             )}
-            {parcels.map((p) => (
+            {manualParcels.length > 0 && (
+              <p className="text-[11px] text-slate-400">
+                Manual parcels ({manualParcels.length}):
+              </p>
+            )}
+            {manualParcels.map((p) => (
               <div
                 key={p.id}
                 className={`rounded bg-slate-800/60 p-2 ring-1 ${

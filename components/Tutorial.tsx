@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const SEEN_KEY = "land-use-planner-tutorial-seen-v1";
+const SEEN_KEY = "land-use-planner-tutorial-seen-v2";
 
 export function hasSeenTutorial(): boolean {
   if (typeof window === "undefined") return true;
@@ -37,14 +37,14 @@ const STEPS: Step[] = [
     body: "In the right panel, drag the sliders for Residential, Roads, Green Space, etc. They always total 100% — move one and the unlocked others adjust proportionally. Click 🔓 to lock a category in place. Each shows its target area.",
   },
   {
-    icon: "➕",
-    title: "4 · Draw parcels",
-    body: "Choose a land-use type in the toolbar, click “Draw Parcels”, and draw polygons inside the boundary. Each parcel records its area, type, and editable notes, and is colored by category on the map. Keep drawing — it stays in parcel mode.",
+    icon: "⚡",
+    title: "4 · Auto-generate the plot layout",
+    body: "In “Auto-Plan”, set your plot size in sq ft (and a minimum size), the road lanes and lane width, and how many plots sit between roads. Click ⚡ Generate Plan: the app lays a road grid, subdivides the boundary into plots, and assigns each to a land use per your sliders. Re-generate any time you change a setting.",
   },
   {
-    icon: "⚙️",
-    title: "5 · Tune parameters & read metrics",
-    body: "Set Residential FAR, unit size, household size, road width, green m²/person target, and industrial buffer. The panel derives floor area, housing units, population, road-area %, green per person, and flags industrial-buffer conflicts.",
+    icon: "🌳",
+    title: "5 · Parameters drive the plan",
+    body: "Set Residential FAR, unit size, household size, green m²/person target, and industrial buffer. With “Green space from parameters” on, green is sized to meet the per-person target. The panel derives floor area, housing units, population, road-area %, and flags industrial-buffer conflicts. Prefer drawing by hand? Use “Manual parcel drawing” in the toolbar.",
   },
   {
     icon: "📊",

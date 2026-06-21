@@ -7,7 +7,30 @@ export interface Parcel {
   notes: string;
   areaSqm: number;
   geometry: Polygon;
+  generated?: boolean; // true when produced by the auto-plan generator
 }
+
+export interface GeneratorOptions {
+  targetPlotSqft: number; // desired residential plot size
+  minPlotSqft: number; // plots smaller than this (edge offcuts) are dropped
+  depthWidthRatio: number; // plot depth / frontage width
+  roadLanes: number; // lanes per road
+  laneWidthFt: number; // width of a single lane
+  colsPerBlock: number; // plots between vertical (cross) roads
+  rowsPerBlock: number; // plot rows between horizontal (access) roads
+  greenFromParams: boolean; // size green space from green m²/person target
+}
+
+export const DEFAULT_GENERATOR: GeneratorOptions = {
+  targetPlotSqft: 2500,
+  minPlotSqft: 1200,
+  depthWidthRatio: 1.4,
+  roadLanes: 2,
+  laneWidthFt: 11,
+  colsPerBlock: 8,
+  rowsPerBlock: 2,
+  greenFromParams: true,
+};
 
 export interface PlanningParameters {
   residentialFAR: number; // floor area ratio
@@ -37,5 +60,6 @@ export interface ProjectState {
   locked: Record<LandUseKey, boolean>;
   parcels: Parcel[];
   parameters: PlanningParameters;
+  generator?: GeneratorOptions;
   savedAt?: string;
 }
