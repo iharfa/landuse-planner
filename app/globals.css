@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.maplibregl-canvas {
+  outline: none;
+}
+
+/* range slider styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: #334155;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #38bdf8;
+  cursor: pointer;
+  border: 2px solid #0f172a;
+}
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: #64748b;
+}

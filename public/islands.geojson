@@ -1,0 +1,75 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "male", "name": "Malé" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [73.5060, 4.1690],
+          [73.5160, 4.1690],
+          [73.5160, 4.1790],
+          [73.5060, 4.1790],
+          [73.5060, 4.1690]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "hulhumale", "name": "Hulhumalé" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [73.5380, 4.2050],
+          [73.5460, 4.2050],
+          [73.5460, 4.2280],
+          [73.5380, 4.2280],
+          [73.5380, 4.2050]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "addu-hithadhoo", "name": "Hithadhoo (Addu)" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [73.0830, -0.6200],
+          [73.0950, -0.6200],
+          [73.0950, -0.5900],
+          [73.0830, -0.5900],
+          [73.0830, -0.6200]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "fuvahmulah", "name": "Fuvahmulah" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [73.4200, -0.3050],
+          [73.4400, -0.3050],
+          [73.4400, -0.2800],
+          [73.4200, -0.2800],
+          [73.4200, -0.3050]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "kulhudhuffushi", "name": "Kulhudhuffushi" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [73.0600, 6.6150],
+          [73.0750, 6.6150],
+          [73.0750, 6.6350],
+          [73.0600, 6.6350],
+          [73.0600, 6.6150]
+        ]]
+      }
+    }
+  ]
+}
