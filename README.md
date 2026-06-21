@@ -25,12 +25,13 @@ npm run build    # production build
 3. **Allocation sliders** (right panel) — 8 land-use categories that always sum
    to 100%. Changing one proportionally adjusts the unlocked others; lock a
    slider (🔒) to pin it. Each shows its `target_area = boundary × % / 100`.
-4. **Auto-Plan → Generate Plan** — set plot size (sq ft) with a minimum-size
-   restriction, road lanes + lane width, and plots-per-block, then click
-   ⚡ Generate. The engine lays a road grid, subdivides the boundary into
-   plots, sizes green space from the planning parameters (or the Green slider),
-   and assigns the remaining plots to the other land uses per the allocation
-   sliders. Manual parcel drawing remains available in the toolbar.
+4. **Auto-Plan → Generate Plan** — set plot size in sq ft (one size for all
+   zones, or per-zone sizes for residential/commercial/industrial/etc.), a
+   minimum-size restriction, road lanes + lane width, and block dimensions,
+   then click ⚡ Generate. The road grid carves the boundary into blocks; each
+   block is zoned (green sized from the planning parameters or the Green
+   slider, the rest split per the allocation sliders) and subdivided into plots
+   at that zone's size. Manual parcel drawing remains available in the toolbar.
 5. **Compare** — bottom bar shows drawn vs. target area, surplus/shortfall, and
    % achieved per category.
 6. **Parameters** — Residential FAR, avg unit size, household size, road width,

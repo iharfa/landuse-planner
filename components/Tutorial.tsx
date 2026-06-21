@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const SEEN_KEY = "land-use-planner-tutorial-seen-v2";
+const SEEN_KEY = "land-use-planner-tutorial-seen-v3";
 
 export function hasSeenTutorial(): boolean {
   if (typeof window === "undefined") return true;
@@ -39,7 +39,7 @@ const STEPS: Step[] = [
   {
     icon: "⚡",
     title: "4 · Auto-generate the plot layout",
-    body: "In “Auto-Plan”, set your plot size in sq ft (and a minimum size), the road lanes and lane width, and how many plots sit between roads. Click ⚡ Generate Plan: the app lays a road grid, subdivides the boundary into plots, and assigns each to a land use per your sliders. Re-generate any time you change a setting.",
+    body: "In “Auto-Plan”, set your plot size in sq ft — one size for all zones, or switch to “Per-zone sizes” to give residential, commercial, industrial, etc. their own plot sizes. Set the road lanes/width and block size, then click ⚡ Generate Plan: the road grid carves the boundary into blocks, each block is zoned, and split into plots at that zone’s size. Re-generate any time you change a setting.",
   },
   {
     icon: "🌳",

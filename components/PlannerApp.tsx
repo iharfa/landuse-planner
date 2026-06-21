@@ -37,6 +37,16 @@ import {
 
 type Mode = "idle" | "boundary" | "parcel";
 
+// land uses that have a configurable plot size (roads/green excluded)
+const ZONE_SIZE_KEYS: LandUseKey[] = [
+  "residential",
+  "commercial",
+  "civic",
+  "industrial",
+  "utilities",
+  "reserved",
+];
+
 function newId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -165,8 +175,8 @@ export default function PlannerApp() {
     ]);
     setSelectedParcelId(null);
     flash(
-      `Generated ${result.stats.plots.toLocaleString()} plots (avg ${Math.round(
-        result.stats.avgPlotSqft
+      `Generated ${result.stats.plots.toLocaleString()} plots in ${result.stats.blocks.toLocaleString()} blocks (avg residential ${Math.round(
+        result.stats.avgResidentialSqft
       ).toLocaleString()} sq ft).`
     );
   }
@@ -510,13 +520,78 @@ export default function PlannerApp() {
             </button>
           </div>
           <div className="flex flex-col gap-2 text-xs">
-            <ParamRow label="Plot size (sq ft)" value={generator.targetPlotSqft} step={100} onChange={(v) => updateGenerator({ targetPlotSqft: v })} />
+            {/* plot-size mode toggle */}
+            <div className="grid grid-cols-2 gap-1 rounded bg-slate-800 p-1">
+              <button
+                onClick={() => updateGenerator({ perZone: false })}
+                className={`rounded px-2 py-1 ${
+                  !generator.perZone
+                    ? "bg-sky-500 text-slate-900"
+                    : "hover:bg-slate-700"
+                }`}
+              >
+                Same for all
+              </button>
+              <button
+                onClick={() => updateGenerator({ perZone: true })}
+                className={`rounded px-2 py-1 ${
+                  generator.perZone
+                    ? "bg-sky-500 text-slate-900"
+                    : "hover:bg-slate-700"
+                }`}
+              >
+                Per-zone sizes
+              </button>
+            </div>
+
+            {!generator.perZone ? (
+              <ParamRow label="Plot size (sq ft)" value={generator.targetPlotSqft} step={100} onChange={(v) => updateGenerator({ targetPlotSqft: v })} />
+            ) : (
+              <div className="rounded bg-slate-800/60 p-2">
+                <div className="mb-1 text-[11px] text-slate-400">
+                  Plot size per zone (sq ft)
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {ZONE_SIZE_KEYS.map((k) => (
+                    <label key={k} className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-slate-300">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-sm"
+                          style={{ background: CATEGORY_MAP[k].color }}
+                        />
+                        {CATEGORY_MAP[k].label}
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={100}
+                        value={generator.zonePlotSqft[k]}
+                        onChange={(e) =>
+                          updateGenerator({
+                            zonePlotSqft: {
+                              ...generator.zonePlotSqft,
+                              [k]: parseFloat(e.target.value) || 0,
+                            },
+                          })
+                        }
+                        className="w-20 rounded bg-slate-900 px-2 py-1 text-right ring-1 ring-white/10"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[10px] text-slate-500">
+                  Block footprint uses the reference size below; each zone’s
+                  blocks are split at its own plot size.
+                </p>
+                <ParamRow label="Block reference (sq ft)" value={generator.targetPlotSqft} step={100} onChange={(v) => updateGenerator({ targetPlotSqft: v })} />
+              </div>
+            )}
             <ParamRow label="Min plot size (sq ft)" value={generator.minPlotSqft} step={100} onChange={(v) => updateGenerator({ minPlotSqft: v })} />
             <ParamRow label="Plot depth : width" value={generator.depthWidthRatio} step={0.1} onChange={(v) => updateGenerator({ depthWidthRatio: v })} />
             <ParamRow label="Road lanes" value={generator.roadLanes} step={1} onChange={(v) => updateGenerator({ roadLanes: Math.max(1, Math.round(v)) })} />
             <ParamRow label="Lane width (ft)" value={generator.laneWidthFt} step={1} onChange={(v) => updateGenerator({ laneWidthFt: v })} />
-            <ParamRow label="Plots between cross-roads" value={generator.colsPerBlock} step={1} onChange={(v) => updateGenerator({ colsPerBlock: Math.max(1, Math.round(v)) })} />
-            <ParamRow label="Rows between roads" value={generator.rowsPerBlock} step={1} onChange={(v) => updateGenerator({ rowsPerBlock: Math.max(1, Math.round(v)) })} />
+            <ParamRow label="Block width (ref plots)" value={generator.colsPerBlock} step={1} onChange={(v) => updateGenerator({ colsPerBlock: Math.max(1, Math.round(v)) })} />
+            <ParamRow label="Block depth (ref plots)" value={generator.rowsPerBlock} step={1} onChange={(v) => updateGenerator({ rowsPerBlock: Math.max(1, Math.round(v)) })} />
             <label className="flex items-center justify-between gap-2">
               <span className="text-slate-300">Green space from parameters</span>
               <input
