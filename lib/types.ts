@@ -25,7 +25,7 @@ export interface GeneratorOptions {
 
 // sensible starting sizes by land use (sq ft)
 export const DEFAULT_ZONE_PLOT_SQFT: Record<LandUseKey, number> = {
-  residential: 2500,
+  residential: 2000,
   commercial: 6000,
   industrial: 12000,
   civic: 8000,
@@ -37,9 +37,9 @@ export const DEFAULT_ZONE_PLOT_SQFT: Record<LandUseKey, number> = {
 
 export const DEFAULT_GENERATOR: GeneratorOptions = {
   perZone: false,
-  targetPlotSqft: 2500,
+  targetPlotSqft: 2000,
   zonePlotSqft: { ...DEFAULT_ZONE_PLOT_SQFT },
-  minPlotSqft: 1200,
+  minPlotSqft: 1000,
   depthWidthRatio: 1.4,
   roadLanes: 2,
   laneWidthFt: 11,
