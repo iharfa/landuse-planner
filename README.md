@@ -26,12 +26,14 @@ npm run build    # production build
    to 100%. Changing one proportionally adjusts the unlocked others; lock a
    slider (🔒) to pin it. Each shows its `target_area = boundary × % / 100`.
 4. **Auto-Plan → Generate Plan** — set plot size in sq ft (one size for all
-   zones, or per-zone sizes for residential/commercial/industrial/etc.), a
-   minimum-size restriction, road lanes + lane width, and block dimensions,
-   then click ⚡ Generate. The road grid carves the boundary into blocks; each
-   block is zoned (green sized from the planning parameters or the Green
-   slider, the rest split per the allocation sliders) and subdivided into plots
-   at that zone's size. Manual parcel drawing remains available in the toolbar.
+   zones, or per-zone sizes), a minimum-size restriction, road lanes + lane
+   width, and block dimensions, then click ⚡ Generate. The boundary is divided
+   into **districts**, each laid out at its **own orientation**: commercial and
+   industrial form their own districts, parks are set aside (sized from the
+   planning parameters or the Green slider), and civic/utilities/reserved are
+   scattered through the residential neighbourhoods. Plot widths vary slightly
+   so lots aren't identical. Click Generate again for a fresh variation. Manual
+   parcel drawing remains available in the toolbar.
 5. **Compare** — bottom bar shows drawn vs. target area, surplus/shortfall, and
    % achieved per category.
 6. **Parameters** — Residential FAR, avg unit size, household size, road width,

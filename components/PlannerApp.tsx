@@ -175,7 +175,7 @@ export default function PlannerApp() {
     ]);
     setSelectedParcelId(null);
     flash(
-      `Generated ${result.stats.plots.toLocaleString()} plots in ${result.stats.blocks.toLocaleString()} blocks (avg residential ${Math.round(
+      `Generated ${result.stats.plots.toLocaleString()} plots across ${result.stats.districts.toLocaleString()} districts (avg residential ${Math.round(
         result.stats.avgResidentialSqft
       ).toLocaleString()} sq ft).`
     );
