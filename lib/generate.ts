@@ -32,7 +32,8 @@ const DISTRICT_USES: LandUseKey[] = ["commercial", "industrial"];
 // uses scattered as individual blocks within residential neighbourhoods
 const BLOCK_USES: LandUseKey[] = ["civic", "utilities", "reserved"];
 
-const ANGLE_CHOICES_DEG = [-30, -20, -12, 0, 0, 12, 22, 32];
+// moderate orientation spread — enough variety without wasting corner land
+const ANGLE_CHOICES_DEG = [-18, -12, -6, 0, 0, 6, 12, 18];
 
 export interface GenerateResult {
   parcels: Parcel[];
@@ -282,9 +283,17 @@ export function generatePlan(
 
   const taken = new Array<boolean>(districts.length).fill(false);
 
+  // Residential perimeter blocks contribute ~21% of their area as courtyard
+  // green, so allocate fewer whole green districts to avoid double-counting.
+  const resShareEst = Math.min(
+    Math.max((percentages.residential || 35) / 100, 0),
+    1
+  );
+  const estCourtyardGreen = 0.24 * 0.8 * resShareEst * totalDistArea;
+  const greenDistrictTarget = Math.max(0, greenTarget - estCourtyardGreen);
   const greenCount = Math.min(
     districts.length,
-    Math.round(greenTarget / (avgArea || 1))
+    Math.round(greenDistrictTarget / (avgArea || 1))
   );
   if (greenCount > 0) {
     const step = Math.max(1, Math.floor(districts.length / greenCount));
@@ -304,11 +313,30 @@ export function generatePlan(
     const target = (totalDistArea * (percentages[u] || 0)) / 100;
     let acc = 0;
     for (const di of byArea) {
-      if (acc >= target) break;
       if (taken[di]) continue;
+      // only take a whole district while still well short of the target;
+      // the remainder is filled by frontage blocks, avoiding big overshoot
+      if (acc + districts[di].areaSqm * 0.5 > target) continue;
       districts[di].use = u;
       taken[di] = true;
       acc += districts[di].areaSqm;
+    }
+    // a meaningful target must get at least one (smallest) district —
+    // industrial belongs in its own zone, never scattered in neighbourhoods
+    if (acc === 0 && target >= refArea) {
+      let best = -1,
+        bestA = Infinity;
+      districts.forEach((dd, di) => {
+        if (!taken[di] && dd.areaSqm < bestA) {
+          bestA = dd.areaSqm;
+          best = di;
+        }
+      });
+      if (best >= 0) {
+        districts[best].use = u;
+        taken[best] = true;
+        acc = bestA;
+      }
     }
     districtAssigned[u] = acc;
   }
@@ -384,108 +412,197 @@ export function generatePlan(
     const stepU = blockW + roadW;
     const stepV = blockD + roadW;
 
-    // blocks
-    for (let cu = uMin; cu < uMax; cu += stepU) {
-      const bu1 = cu + blockW;
-      for (let cv = vMin; cv < vMax; cv += stepV) {
-        const bv1 = cv + blockD;
-        const bc: [number, number][] = [
-          toWorld(cu, cv),
-          toWorld(bu1, cv),
-          toWorld(bu1, bv1),
-          toWorld(cu, bv1),
-        ];
-        // cheap reject: block centre outside rect∩boundary and no corner in
-        const ctr = toWorld((cu + bu1) / 2, (cv + bv1) / 2);
-        const anyIn =
-          inRect(ctr[0], ctr[1]) && pointInRing(ctr[0], ctr[1], ringM);
-        const cornersIn = bc.filter(
-          (c) => inRect(c[0], c[1]) && pointInRing(c[0], c[1], ringM)
-        ).length;
-        if (!anyIn && cornersIn === 0) continue;
-        const blockInBoundary =
-          bc.every((c) => pointInRing(c[0], c[1], ringM)) &&
-          bc.every((c) => inRect(c[0], c[1]));
-
-        // block use
-        let bUse: LandUseKey = d.use;
-        if (d.use === "residential") {
-          const needing = (Object.keys(blockRemaining) as LandUseKey[]).filter(
-            (k) => (blockRemaining[k] || 0) > 0
-          );
-          if (needing.length && rng() < 0.4) {
-            needing.sort(
-              (a, b) => (blockRemaining[b] || 0) - (blockRemaining[a] || 0)
-            );
-            bUse = needing[0];
-          }
+    // ---- per-plot writer (interior fast path; coastal clip) ----
+    const addPlot = (
+      use: LandUseKey,
+      pu: number,
+      pv: number,
+      qu1: number,
+      qv1: number,
+      inB: boolean
+    ): number => {
+      if (qu1 - pu < 1e-3 || qv1 - pv < 1e-3) return 0;
+      const ctrW = toWorld((pu + qu1) / 2, (pv + qv1) / 2);
+      if (!inRect(ctrW[0], ctrW[1])) return 0;
+      const pc: [number, number][] = [
+        toWorld(pu, pv),
+        toWorld(qu1, pv),
+        toWorld(qu1, qv1),
+        toWorld(pu, qv1),
+      ];
+      const ringLL: Position[] = [...pc, pc[0]].map((c) => proj.toLL(c));
+      if (inB) {
+        const area = (qu1 - pu) * (qv1 - pv);
+        if (area < minPlotArea) return 0;
+        push(use, { type: "Polygon", coordinates: [ringLL] }, area);
+        plotCount++;
+        if (use === "residential") {
+          resArea += area;
+          resCount++;
         }
-
-        const zArea = zoneSqft(opt, bUse) * SQFT_TO_SQM;
-        const zW = Math.sqrt(zArea / ratio);
-        const zD = ratio * zW;
-
-        let used = 0;
-        for (let pu = cu; pu < bu1 - 1e-6; ) {
-          const w = zW * (0.85 + rng() * 0.3);
-          const qu1 = Math.min(pu + w, bu1);
-          for (let pv = cv; pv < bv1 - 1e-6; ) {
-            const qv1 = Math.min(pv + zD, bv1);
-            const pcCtr = toWorld((pu + qu1) / 2, (pv + qv1) / 2);
-            if (inRect(pcCtr[0], pcCtr[1])) {
-              const pc: [number, number][] = [
-                toWorld(pu, pv),
-                toWorld(qu1, pv),
-                toWorld(qu1, qv1),
-                toWorld(pu, qv1),
-              ];
-              const ringLL: Position[] = [...pc, pc[0]].map((c) => proj.toLL(c));
-              if (blockInBoundary) {
-                const area = (qu1 - pu) * (qv1 - pv);
-                if (area >= minPlotArea) {
-                  push(bUse, { type: "Polygon", coordinates: [ringLL] }, area);
-                  plotCount++;
-                  used += area;
-                  if (bUse === "residential") {
-                    resArea += area;
-                    resCount++;
-                  }
-                }
-              } else if (pointInRing(pcCtr[0], pcCtr[1], ringM)) {
-                // coastal: clip to district∩boundary
-                let clipped: any = null;
-                try {
-                  clipped = turf.intersect(
-                    turf.featureCollection([
-                      turf.polygon([ringLL]),
-                      d.clip,
-                    ]) as any
-                  );
-                } catch {
-                  clipped = null;
-                }
-                const pieces: { geometry: Polygon; areaSqm: number }[] = [];
-                if (clipped) collectPolys(clipped.geometry, minPlotArea, pieces);
-                pieces.forEach((p) => {
-                  push(bUse, p.geometry, p.areaSqm);
-                  plotCount++;
-                  used += p.areaSqm;
-                  if (bUse === "residential") {
-                    resArea += p.areaSqm;
-                    resCount++;
-                  }
-                });
-              }
-            }
-            pv = qv1;
-          }
-          pu = qu1;
+        return area;
+      }
+      if (!pointInRing(ctrW[0], ctrW[1], ringM)) return 0;
+      let clipped: any = null;
+      try {
+        clipped = turf.intersect(
+          turf.featureCollection([turf.polygon([ringLL]), d.clip]) as any
+        );
+      } catch {
+        clipped = null;
+      }
+      const pieces: { geometry: Polygon; areaSqm: number }[] = [];
+      if (clipped) collectPolys(clipped.geometry, minPlotArea, pieces);
+      let sum = 0;
+      pieces.forEach((p) => {
+        push(use, p.geometry, p.areaSqm);
+        plotCount++;
+        sum += p.areaSqm;
+        if (use === "residential") {
+          resArea += p.areaSqm;
+          resCount++;
         }
-        if (bUse !== d.use && blockRemaining[bUse] !== undefined) {
-          blockRemaining[bUse] = Math.max(0, blockRemaining[bUse]! - used);
+      });
+      return sum;
+    };
+
+    // fully tile a block (commercial / industrial / civic facilities)
+    const fillBlock = (
+      use: LandUseKey,
+      cu: number,
+      bu1: number,
+      cv: number,
+      bv1: number,
+      inB: boolean
+    ) => {
+      const z = zoneSqft(opt, use) * SQFT_TO_SQM;
+      const zW = Math.sqrt(z / ratio),
+        zD = ratio * zW;
+      let used = 0;
+      for (let pu = cu; pu < bu1 - 1e-6; ) {
+        const w = zW * (0.85 + rng() * 0.3);
+        const qu1 = Math.min(pu + w, bu1);
+        for (let pv = cv; pv < bv1 - 1e-6; ) {
+          const qv1 = Math.min(pv + zD, bv1);
+          used += addPlot(use, pu, pv, qu1, qv1, inB);
+          pv = qv1;
+        }
+        pu = qu1;
+      }
+      return used;
+    };
+
+    // perimeter block: plots tiled around a modest central courtyard (green).
+    // Buildings face the surrounding streets; the courtyard is shared open
+    // space (~20% of the block) — the Hulhumalé superblock pattern.
+    const perimeterBlock = (
+      use: LandUseKey,
+      cu: number,
+      bu1: number,
+      cv: number,
+      bv1: number,
+      inB: boolean
+    ) => {
+      const z = zoneSqft(opt, use) * SQFT_TO_SQM;
+      const zW = Math.sqrt(z / ratio),
+        zD = ratio * zW;
+      const bw = bu1 - cu,
+        bd = bv1 - cv;
+      if (bw < 4 * zW || bd < 4 * zD)
+        return fillBlock(use, cu, bu1, cv, bv1, inB);
+      // central courtyard rect (~0.46×0.46 of block ≈ 21% area)
+      const cmu = bw * 0.27,
+        cmv = bd * 0.27;
+      const ix0 = cu + cmu,
+        ix1 = bu1 - cmu,
+        iy0 = cv + cmv,
+        iy1 = bv1 - cmv;
+      let used = 0;
+      for (let pu = cu; pu < bu1 - 1e-6; ) {
+        const w = zW * (0.85 + rng() * 0.3);
+        const qu1 = Math.min(pu + w, bu1);
+        for (let pv = cv; pv < bv1 - 1e-6; ) {
+          const qv1 = Math.min(pv + zD, bv1);
+          const mu = (pu + qu1) / 2,
+            mv = (pv + qv1) / 2;
+          const inCourt = mu > ix0 && mu < ix1 && mv > iy0 && mv < iy1;
+          if (!inCourt) used += addPlot(use, pu, pv, qu1, qv1, inB);
+          pv = qv1;
+        }
+        pu = qu1;
+      }
+      // shared central courtyard
+      addPlot("green", ix0, iy0, ix1, iy1, inB);
+      return used;
+    };
+
+    // enumerate blocks; the centre-most hosts the neighbourhood facility
+    const blockList: { cu: number; cv: number }[] = [];
+    for (let cu = uMin; cu < uMax; cu += stepU)
+      for (let cv = vMin; cv < vMax; cv += stepV) blockList.push({ cu, cv });
+    let civicIdx = -1,
+      civicBest = Infinity;
+    blockList.forEach((b, i) => {
+      const c = toWorld(b.cu + blockW / 2, b.cv + blockD / 2);
+      const dd = (c[0] - cx) ** 2 + (c[1] - cy) ** 2;
+      if (dd < civicBest) {
+        civicBest = dd;
+        civicIdx = i;
+      }
+    });
+
+    blockList.forEach((b, i) => {
+      const cu = b.cu,
+        bu1 = cu + blockW,
+        cv = b.cv,
+        bv1 = cv + blockD;
+      const bc: [number, number][] = [
+        toWorld(cu, cv),
+        toWorld(bu1, cv),
+        toWorld(bu1, bv1),
+        toWorld(cu, bv1),
+      ];
+      const ctr = toWorld((cu + bu1) / 2, (cv + bv1) / 2);
+      const anyIn =
+        inRect(ctr[0], ctr[1]) && pointInRing(ctr[0], ctr[1], ringM);
+      const cornersIn = bc.filter(
+        (c) => inRect(c[0], c[1]) && pointInRing(c[0], c[1], ringM)
+      ).length;
+      if (!anyIn && cornersIn === 0) return;
+      const inB =
+        bc.every((c) => pointInRing(c[0], c[1], ringM)) &&
+        bc.every((c) => inRect(c[0], c[1]));
+
+      // classify the block's role within its district
+      let use: LandUseKey = d.use;
+      let perim = false;
+      if (d.use === "residential") {
+        const edgeDist = Math.min(
+          ctr[0] - x0,
+          x1 - ctr[0],
+          ctr[1] - y0,
+          y1 - ctr[1]
+        );
+        if (i === civicIdx && (blockRemaining.civic || 0) > 0) use = "civic";
+        else if (edgeDist < blockW && (blockRemaining.commercial || 0) > 0)
+          use = "commercial"; // mixed-use frontage on the main roads
+        else if ((blockRemaining.utilities || 0) > 0 && rng() < 0.15)
+          use = "utilities";
+        else if ((blockRemaining.reserved || 0) > 0 && rng() < 0.12)
+          use = "reserved";
+        else {
+          use = "residential";
+          perim = true; // perimeter block with courtyard
         }
       }
-    }
+
+      const used = perim
+        ? perimeterBlock(use, cu, bu1, cv, bv1, inB)
+        : fillBlock(use, cu, bu1, cv, bv1, inB);
+      if (use !== d.use && blockRemaining[use] !== undefined) {
+        blockRemaining[use] = Math.max(0, blockRemaining[use]! - used);
+      }
+    });
 
     // local roads: full-length strips clipped to district∩boundary
     const pushRoad = (rectLocal: [number, number][]) => {

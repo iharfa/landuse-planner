@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const SEEN_KEY = "land-use-planner-tutorial-seen-v4";
+const SEEN_KEY = "land-use-planner-tutorial-seen-v5";
 
 export function hasSeenTutorial(): boolean {
   if (typeof window === "undefined") return true;
@@ -39,7 +39,7 @@ const STEPS: Step[] = [
   {
     icon: "⚡",
     title: "4 · Auto-generate the plot layout",
-    body: "In “Auto-Plan”, set your plot size in sq ft — one size for all zones, or “Per-zone sizes” to give each land use its own. Set road lanes/width and block size, then click ⚡ Generate Plan. The boundary is divided into districts, each laid out at its own orientation: commercial and industrial form their own districts, parks are set aside, and civic/utilities/reserved are scattered through the residential neighbourhoods. Click Generate again for a fresh variation.",
+    body: "In “Auto-Plan”, set your plot size in sq ft — one size for all zones, or “Per-zone sizes” to give each land use its own. Set road lanes/width and block size, then click ⚡ Generate Plan. Inspired by Hulhumalé, the boundary is split into districts at varied orientations: residential blocks are laid out as perimeter plots around shared central courtyards, each neighbourhood gets a civic facility at its centre with commercial/mixed-use frontage on the main roads, industry sits in its own zone, and parks are set aside. Use the sliders to rebalance, then Generate again for a fresh variation.",
   },
   {
     icon: "🌳",

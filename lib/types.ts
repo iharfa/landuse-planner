@@ -43,8 +43,8 @@ export const DEFAULT_GENERATOR: GeneratorOptions = {
   depthWidthRatio: 1.4,
   roadLanes: 2,
   laneWidthFt: 11,
-  colsPerBlock: 8,
-  rowsPerBlock: 2,
+  colsPerBlock: 7,
+  rowsPerBlock: 5,
   greenFromParams: true,
 };
 
