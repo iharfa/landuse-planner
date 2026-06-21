@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Feature, FeatureCollection, Polygon } from "geojson";
 import MapView, { MapViewHandle } from "./MapView";
+import Tutorial, { hasSeenTutorial } from "./Tutorial";
 import {
   CATEGORY_MAP,
   DEFAULT_PERCENTAGES,
@@ -66,6 +67,12 @@ export default function PlannerApp() {
   const [pendingUse, setPendingUse] = useState<LandUseKey>("residential");
   const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // show the tutorial automatically on first visit
+  useEffect(() => {
+    if (!hasSeenTutorial()) setShowTutorial(true);
+  }, []);
 
   // refs so the map's stable callback reads current values
   const modeRef = useRef(mode);
@@ -247,8 +254,17 @@ export default function PlannerApp() {
 
       {/* ===== Left toolbar ===== */}
       <div className="absolute left-3 top-3 z-10 flex w-64 flex-col gap-3 rounded-xl bg-slate-900/90 p-3 text-sm shadow-xl ring-1 ring-white/10 backdrop-blur">
-        <div className="text-base font-semibold text-sky-300">
-          🏝️ Land-Use Planner
+        <div className="flex items-center justify-between">
+          <div className="text-base font-semibold text-sky-300">
+            🏝️ Land-Use Planner
+          </div>
+          <button
+            onClick={() => setShowTutorial(true)}
+            title="Show tutorial"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs ring-1 ring-white/10 hover:bg-slate-700"
+          >
+            ?
+          </button>
         </div>
 
         <label className="block">
@@ -572,6 +588,8 @@ export default function PlannerApp() {
           {toast}
         </div>
       )}
+
+      {showTutorial && <Tutorial onClose={() => setShowTutorial(false)} />}
     </div>
   );
 }

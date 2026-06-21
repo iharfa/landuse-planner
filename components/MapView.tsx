@@ -31,6 +31,8 @@ interface MapViewProps {
 // Esri World Imagery — free satellite tiles, no API key required.
 const SATELLITE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
+  // glyphs are required for symbol/text layers (parcel labels)
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   sources: {
     satellite: {
       type: "raster",
@@ -115,6 +117,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         source: "parcels",
         layout: {
           "text-field": ["get", "label"],
+          "text-font": ["Noto Sans Regular"],
           "text-size": 11,
           "text-allow-overlap": false,
         },
